@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<div id="clock"></div>
+<script>
+  //eventSource 不能跨域 
+  let eventSource = new EventSource('/clock');
+  let clock = document.querySelector('#clock');
+  //监听服务器发过来的消息
+  eventSource.onmessage = function(event){
+    let message = event.data;
+    clock.innerHTML = message;
+  }
+  eventSource.onopen = function(event){
+    console.log('onopen',event.data);
+  }
+  //监听连接请求失败的错误事件
+  eventSource.onerror = function(event){}
+</script>    
+</body>
+</html>

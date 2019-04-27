@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "mongoose": "^5.4.19",
+    "ssestream": "^1.0.1"
+  }
+}
