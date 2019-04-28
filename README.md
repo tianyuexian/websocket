@@ -64,7 +64,9 @@ app.listen(8080);
 long poll 需要有很高的并发能力
 ## 2.3 iframe流
 通过在HTML页面里嵌入一个隐藏的iframe,然后将这个iframe的src属性设为对一个长连接的请求,服务器端就能源源不断地往客户推送数据。
+
 ![image](https://github.com/tianyuexian/websocket/blob/master/websocket3.jpg)
+
 server.js
 ```
 const express = require('express');
