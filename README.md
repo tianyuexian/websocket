@@ -11,6 +11,7 @@ Comet是一种用于web的推送技术，能使服务器能实时地将更新的
 ## 2.1 轮询
     轮询是客户端和服务器之间会一直进行连接，每隔一段时间就询问一次
     这种方式连接数会很多，一个接受，一个发送。而且每次发送请求都会有Http的Header，会很耗流量，也会消耗CPU的利用率
+![image](https://github.com/tianyuexian/websocket/blob/master/websocket1.jpg)
 实现方式
 ```
 let express = require('express');
@@ -43,7 +44,7 @@ app.listen(8080);
     长轮询是对轮询的改进版，客户端发送HTTP给服务器之后，看有没有新消息，如果没有新消息，就一直等待
     当有新消息的时候，才会返回给客户端。在某种程度上减小了网络带宽和CPU利用率等问题。
     由于http数据包的头部数据量往往很大（通常有400多个字节），但是真正被服务器需要的数据却很少（有时只有10个字节左右），这样的数据包在网络上周期性的传输，难免对网络带宽是一种浪费
-
+![image](https://github.com/tianyuexian/websocket/blob/master/websocket2.jpg)
 ```
 <div id="clock"></div>
     <script>
@@ -63,6 +64,7 @@ app.listen(8080);
 long poll 需要有很高的并发能力
 ## 2.3 iframe流
 通过在HTML页面里嵌入一个隐藏的iframe,然后将这个iframe的src属性设为对一个长连接的请求,服务器端就能源源不断地往客户推送数据。
+![image](https://github.com/tianyuexian/websocket/blob/master/websocket3.jpg)
 server.js
 ```
 const express = require('express');
