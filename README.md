@@ -154,3 +154,139 @@ app.get('/eventSource',function(req,res){
 app.listen(8888);
 ```
 # 3.websocket
+    WebSockets_API 规范定义了一个 API 用以在网页浏览器和服务器建立一个 socket 连接。通俗地讲：在客户端和服务器保有一个持久的连接，两边可以在任意时间开始发送数据。
+    HTML5开始提供的一种浏览器与服务器进行全双工通讯的网络技术
+    属于应用层协议，它基于TCP传输协议，并复用HTTP的握手通道。
+## 2.1 websocket 优势
+    支持双向通信，实时性更强。
+    更好的二进制支持。
+    较少的控制开销。连接创建后，ws客户端、服务端进行数据交换时，协议控制的数据包头部较小。
+## 2.2 websocket实战
+### 2.2.1 服务端
+```
+let express = require('express');
+const path = require('path');
+let app = express();
+let server = require('http').createServer(app);
+app.get('/', function (req, res) {
+    res.sendFile(path.resolve(__dirname, 'index.html'));
+});
+app.listen(3000);
+
+
+//-----------------------------------------------
+let WebSocketServer = require('ws').Server;
+let wsServer = new WebSocketServer({ port: 8888 });
+wsServer.on('connection', function (socket) {
+    console.log('连接成功');
+    socket.on('message', function (message) {
+        console.log('接收到客户端消息:' + message);
+        socket.send('服务器回应:' + message);
+    });
+});
+```
+### 2.2.2 客户端
+```
+  <script>
+        let ws = new WebSocket('ws://localhost:8888');
+        ws.onopen = function () {
+            console.log('客户端连接成功');
+            ws.send('hello');
+        }
+        ws.onmessage = function (event) {
+            console.log('收到服务器的响应 ' + event.data);
+        }
+    </script>
+```
+## 2.3 如何建立连接
+WebSocket复用了HTTP的握手通道。具体指的是，客户端通过HTTP请求与WebSocket服务端协商升级协议。协议升级完成后，后续的数据交换则遵照WebSocket的协议。
+### 2.3.1 客户端：申请协议升级
+首先，客户端发起协议升级请求。可以看到，采用的是标准的HTTP报文格式，且只支持GET方法。
+```
+GET ws://localhost:8888/ HTTP/1.1
+Host: localhost:8888
+Connection: Upgrade
+Upgrade: websocket
+Sec-WebSocket-Version: 13
+Sec-WebSocket-Key: IHfMdf8a0aQXbwQO1pkGdA==
+```
+```
+Connection: Upgrade：表示要升级协议
+Upgrade: websocket：表示要升级到websocket协议
+Sec-WebSocket-Version: 13：表示websocket的版本
+Sec-WebSocket-Key：与后面服务端响应首部的Sec-WebSocket-Accept是配套的，提供基本的防护，比如恶意的连接，或者无意的连接。
+```
+### 2.3.2 服务端：响应协议升级
+服务端返回内容如下，状态代码101表示协议切换。到此完成协议升级，后续的数据交互都按照新的协议来。
+```
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: aWAY+V/uyz5ILZEoWuWdxjnlb7E=
+```
+### 2.3.3 服务器实战
+```
+const net = require('net');
+const crypto = require('crypto');
+const CODE = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+let server = net.createServer(function (socket) {
+    socket.once('data', function (data) {
+        data = data.toString();
+        if (data.match(/Upgrade: websocket/)) {
+            let rows = data.split('\r\n');//按分割符分开
+            rows = rows.slice(1, -2);//去掉请求行和尾部的二个分隔符
+            const headers = {};
+            rows.forEach(row => {
+                let [key, value] = row.split(': ');
+                headers[key] = value;
+            });
+            if (headers['Sec-WebSocket-Version'] == 13) {
+                let wsKey = headers['Sec-WebSocket-Key'];
+                let acceptKey = crypto.createHash('sha1').update(wsKey + CODE).digest('base64');
+                let response = [
+                    'HTTP/1.1 101 Switching Protocols',
+                    'Upgrade: websocket',
+                    `Sec-WebSocket-Accept: ${acceptKey}`,
+                    'Connection: Upgrade',
+                    '\r\n'
+                ].join('\r\n');
+                socket.write(response);
+                socket.on('data', function (buffers) {
+                    let _fin = (buffers[0] & 0b10000000) === 0b10000000;//判断是否是结束位,第一个bit是不是1
+                    let _opcode = buffers[0] & 0b00001111;//取一个字节的后四位,得到的一个是十进制数
+                    let _masked = buffers[1] & 0b100000000 === 0b100000000;//第一位是否是1
+                    let _payloadLength = buffers[1] & 0b01111111;//取得负载数据的长度
+                    let _mask = buffers.slice(2, 6);//掩码
+                    let payload = buffers.slice(6);//负载数据
+
+                    unmask(payload, _mask);//对数据进行解码处理
+
+                    //向客户端响应数据
+                    let response = Buffer.alloc(2 + payload.length);
+                    response[0] = _opcode | 0b10000000;//1表示发送结束
+                    response[1] = payload.length;//负载的长度
+                    payload.copy(response, 2);
+                    socket.write(response);
+                });
+            }
+
+        }
+    });
+    function unmask(buffer, mask) {
+        const length = buffer.length;
+        for (let i = 0; i < length; i++) {
+            buffer[i] ^= mask[i & 3];
+        }
+    }
+    socket.on('end', function () {
+        console.log('end');
+    });
+    socket.on('close', function () {
+        console.log('close');
+    });
+    socket.on('error', function (error) {
+        console.log(error);
+    });
+});
+server.listen(9999);
+```
